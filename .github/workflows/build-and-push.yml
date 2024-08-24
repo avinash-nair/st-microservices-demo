@@ -1,6 +1,6 @@
 name: Build and Push Docker Images
 
-on:
+on: 
   push:
     branches:
       - dev
@@ -131,12 +131,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Get AKS Credentials (if needed for private ACR)
-        # Only needed if your ACR is private and requires authentication for AKS to pull images
+        # Only needed if your ACR is private 
         run: |
           az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
 
       - name: Deploy to AKS
-        uses: ./.github/workflows/deploy-to-aks.yml  # Corrected to use 'uses'
+        uses: ./.github/workflows/deploy-to-aks.yml  
         with:
           images: "${{ needs.build-and-push.outputs.images }}" 
 
