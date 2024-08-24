@@ -1,9 +1,12 @@
-name: Build and Push Docker Images
+name: Deploy to AKS
 
-on: 
-  push:
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
     branches:
-      - dev
+      - dev 
 
 permissions:
   id-token: write
@@ -13,31 +16,19 @@ env:
   AZURE_REGION: 'australiaeast'
   ACR_NAME: 'skilltechregistry'
   RESOURCE_GROUP_NAME: 'microservices-demo-rg'
+  AKS_CLUSTER_NAME: 'microservices-demo-aks' 
+  AKS_NAMESPACE: 'default'                    
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  
-    strategy:
-      matrix:
-        service:
-          - src/adservice
-          - src/cartservice/src 
-          - src/checkoutservice
-          - src/currencyservice
-          - src/emailservice
-          - src/frontend
-          - src/loadgenerator
-          - src/paymentservice
-          - src/productcatalogservice
-          - src/recommendationservice
-          - src/shippingservice
-          - src/shoppingassistantservice
-    outputs:
-      images: ${{ steps.set-images-output.outputs.images }} 
+    needs: build-and-push 
     steps:
-      - name: Checkout code
+      - name: Checkout code 
         uses: actions/checkout@v3
+
+      - name: Get built images
+        run: echo "${{ needs.build-and-push.outputs.images }}" 
 
       - name: Install Azure CLI
         run: |
@@ -54,45 +45,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Log in to Azure Container Registry
+      - name: Get AKS Credentials (if needed for private ACR)
+        # Only needed if your ACR is private 
         run: |
-          az acr login --name ${{ env.ACR_NAME }}
+          az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
 
-      - name: Build and push Docker image
+      - name: Install Helm
         run: |
-          # Adjust the path if your Dockerfile is in a different location
-          DOCKERFILE_PATH=${{ matrix.service }} 
-          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
-            DOCKERFILE_PATH=${{ matrix.service }}/src # Check in the 'src' subdirectory
-          fi
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
 
-          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
-            echo "Error: Dockerfile not found in $DOCKERFILE_PATH"
-            exit 1
-          fi
-
-          cd $DOCKERFILE_PATH  # Change to the directory containing the Dockerfile
-
-          # Special handling for cartservice image name
-          if [ "${{ matrix.service }}" == "src/cartservice/src" ]; then
-            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/cartservice
-          else
-            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/$(basename ${{ matrix.service }})
-          fi
-
-          # Check for requirements.txt (Python) or go.mod and go.sum (Go)
-          if [ -f "requirements.txt" ]; then
-            pip install --upgrade pip
-            pip install -r requirements.txt
-          elif [ -f "go.mod" ] && [ -f "go.sum" ]; then
-            go mod download 
-          fi
-
-          docker build -t $IMAGE_NAME:latest .
-          docker push $IMAGE_NAME:latest
-
-      - id: set-images-output 
-        run: echo "images=$(echo ${{ matrix.service }} | sed 's/src\///g' | sed 's/\/src//g')" >> $GITHUB_OUTPUT
+      - name: Deploy to AKS (using Helm)
+        run: |
+          for service in ${{ needs.build-and-push.outputs.images }}; do
+            echo "Deploying $service"
+            helm upgrade --install $service charts/$service \
+              --set image.repository=${{ env.ACR_NAME }}.azurecr.io/$service \
+              --set image.tag=latest \
+              --namespace ${{ env.AKS_NAMESPACE }} 
+            echo "Deployed $service"
+          done
 
       - name: Azure CLI logout
         run: |
