@@ -1,25 +1,40 @@
-name: Deploy to AKS
+name: Build and Push Docker Images
 
-on:
-  workflow_call:
-    inputs:
-      images:
-        required: true
-        type: string
-    secrets:
-      AZURE_CLIENT_ID:
-        required: true
-      AZURE_TENANT_ID:
-        required: true
-      AZURE_SUBSCRIPTION_ID:
-        required: true
+on: 
+  push:
+    branches:
+      - dev
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
-  AKS_NAMESPACE: 'default' # Replace if you use a different namespace
+  AZURE_REGION: 'australiaeast'
+  ACR_NAME: 'skilltechregistry'
+  RESOURCE_GROUP_NAME: 'microservices-demo-rg'
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 60  
+    strategy:
+      matrix:
+        service:
+          - src/adservice
+          - src/cartservice/src 
+          - src/checkoutservice
+          - src/currencyservice
+          - src/emailservice
+          - src/frontend
+          - src/loadgenerator
+          - src/paymentservice
+          - src/productcatalogservice
+          - src/recommendationservice
+          - src/shippingservice
+          - src/shoppingassistantservice
+    outputs:
+      images: ${{ steps.set-images-output.outputs.images }} 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -28,6 +43,10 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
+      - name: Verify Azure CLI installation
+        run: |
+          az --version
+
       - name: Log in to Azure
         uses: azure/login@v1.4.7
         with:
@@ -35,20 +54,46 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get AKS Credentials
+      - name: Log in to Azure Container Registry
         run: |
-          az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
+          az acr login --name ${{ env.ACR_NAME }}
 
-      - name: Deploy all manifests
+      - name: Build and push Docker image
         run: |
-          echo "Deploying all services using release/kubernetes-manifests.yaml"
-          kubectl apply -f release/kubernetes-manifests.yaml
-          kubectl wait --for=condition=available --timeout=60s deployment --all --namespace ${{ env.AKS_NAMESPACE }}
+          # Adjust the path if your Dockerfile is in a different location
+          DOCKERFILE_PATH=${{ matrix.service }} 
+          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
+            DOCKERFILE_PATH=${{ matrix.service }}/src # Check in the 'src' subdirectory
+          fi
 
-      - name: Update images
+          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
+            echo "Error: Dockerfile not found in $DOCKERFILE_PATH"
+            exit 1
+          fi
+
+          cd $DOCKERFILE_PATH  # Change to the directory containing the Dockerfile
+
+          # Special handling for cartservice image name
+          if [ "${{ matrix.service }}" == "src/cartservice/src" ]; then
+            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/cartservice
+          else
+            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/$(basename ${{ matrix.service }})
+          fi
+
+          # Check for requirements.txt (Python) or go.mod and go.sum (Go)
+          if [ -f "requirements.txt" ]; then
+            pip install --upgrade pip
+            pip install -r requirements.txt
+          elif [ -f "go.mod" ] && [ -f "go.sum" ]; then
+            go mod download 
+          fi
+
+          docker build -t $IMAGE_NAME:latest .
+          docker push $IMAGE_NAME:latest
+
+      - id: set-images-output 
+        run: echo "images=$(echo ${{ matrix.service }} | sed 's/src\///g' | sed 's/\/src//g')" >> $GITHUB_OUTPUT
+
+      - name: Azure CLI logout
         run: |
-          for service in ${{ inputs.images }}; do
-            echo "Updating image for $service"
-            kubectl set image deployment/$service server=skilltechregistry.azurecr.io/$service:latest --namespace ${{ env.AKS_NAMESPACE }}
-            echo "Updated $service"
-          done
+          az logout
