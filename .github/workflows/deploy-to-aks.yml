@@ -1,12 +1,9 @@
 name: Deploy to AKS
 
 on:
-  workflow_dispatch:  # This allows the workflow to be manually triggered
-    inputs:
-      image_tag:
-        description: 'Tag for Docker images to deploy (e.g., latest or a specific version tag)'
-        required: true
-        default: 'latest'
+  push:
+    branches:
+      - dev
 
 permissions:
   id-token: write
