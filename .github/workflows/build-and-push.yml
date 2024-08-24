@@ -1,12 +1,9 @@
 name: Build and Push Docker Images
 
-on: 
-  workflow_run:
-    workflows: ["Azure Infrastructure Setup"] 
-    types:
-      - completed
+on:
+  push:
     branches:
-      - dev 
+      - dev
 
 permissions:
   id-token: write
