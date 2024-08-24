@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch: {}
+  workflow_dispatch: {} 
 
 permissions:
   id-token: write
   contents: read
 
 env:
-  AKS_NAMESPACE: 'default' # Replace if you use a different namespace
+  AKS_NAMESPACE: 'default'
   ACR_NAME: 'skilltechregistry'
 
 jobs:
@@ -48,19 +48,18 @@ jobs:
       - name: Update image tags for each service
         run: |
           echo "Updating image tags for all services to ${{ github.event.inputs.image_tag }}"
-          # Replace 'server' with the actual container name from your YAML files
-          kubectl set image deployment/currencyservice server=${{ env.ACR_NAME }}.azurecr.io/currencyservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/adservice server=${{ env.ACR_NAME }}.azurecr.io/adservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/cartservice server=${{ env.ACR_NAME }}.azurecr.io/cartservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/checkoutservice server=${{ env.ACR_NAME }}.azurecr.io/checkoutservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/emailservice server=${{ env.ACR_NAME }}.azurecr.io/emailservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/frontend server=${{ env.ACR_NAME }}.azurecr.io/frontend:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/loadgenerator server=${{ env.ACR_NAME }}.azurecr.io/loadgenerator:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/paymentservice server=${{ env.ACR_NAME }}.azurecr.io/paymentservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/productcatalogservice server=${{ env.ACR_NAME }}.azurecr.io/productcatalogservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/recommendationservice server=${{ env.ACR_NAME }}.azurecr.io/recommendationservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/shippingservice server=${{ env.ACR_NAME }}.azurecr.io/shippingservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
-          kubectl set image deployment/shoppingassistantservice server=${{ env.ACR_NAME }}.azurecr.io/shoppingassistantservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/currencyservice server=skilltechregistry.azurecr.io/currencyservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/adservice server=skilltechregistry.azurecr.io/adservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/cartservice server=skilltechregistry.azurecr.io/cartservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/checkoutservice server=skilltechregistry.azurecr.io/checkoutservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/emailservice server=skilltechregistry.azurecr.io/emailservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/frontend server=skilltechregistry.azurecr.io/frontend:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }} 
+          kubectl set image deployment/loadgenerator main=skilltechregistry.azurecr.io/loadgenerator:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }} 
+          kubectl set image deployment/paymentservice server=skilltechregistry.azurecr.io/paymentservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/productcatalogservice server=skilltechregistry.azurecr.io/productcatalogservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/recommendationservice server=skilltechregistry.azurecr.io/recommendationservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/shippingservice server=skilltechregistry.azurecr.io/shippingservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/shoppingassistantservice server=skilltechregistry.azurecr.io/shoppingassistantservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
 
       - name: Azure CLI logout
         run: |
