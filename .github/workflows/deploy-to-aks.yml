@@ -63,4 +63,3 @@ jobs:
       - name: Azure CLI logout
         run: |
           az logout
-
