@@ -1,9 +1,12 @@
 name: Build and Push Docker Images
 
-on:
-  push:
+on: 
+  workflow_run:
+    workflows: ["Azure Infrastructure Setup"] 
+    types:
+      - completed
     branches:
-      - dev
+      - dev 
 
 permissions:
   id-token: write
@@ -34,7 +37,7 @@ jobs:
           - src/shippingservice
           - src/shoppingassistantservice
     outputs:
-      images: ${{ steps.set-images-output.outputs.images }} # Output the built images
+      images: ${{ steps.set-images-output.outputs.images }} 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -135,7 +138,7 @@ jobs:
           az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
 
       - name: Deploy to AKS
-        uses: ./.github/workflows/deploy-to-aks.yml # Use the separate deployment workflow
+        uses: ./.github/workflows/deploy-to-aks.yml 
         with:
           images: "${{ needs.build-and-push.outputs.images }}" 
 
