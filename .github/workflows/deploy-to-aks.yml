@@ -26,6 +26,8 @@ jobs:
           for service in ${{ inputs.images }}; do
             echo "Deploying $service"
             kubectl apply -f kubernetes-manifests/$service.yaml 
+            kubectl rollout status deployment/$service --namespace ${{ env.AKS_NAMESPACE }} # Check deployment status
+            sleep 10 # Add a delay
             kubectl set image deployment/$service server=$service:latest --namespace ${{ env.AKS_NAMESPACE }}
             echo "Deployed $service"
           done
