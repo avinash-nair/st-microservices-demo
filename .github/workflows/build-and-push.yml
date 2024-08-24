@@ -23,7 +23,7 @@ jobs:
       matrix:
         service:
           - src/adservice
-          - src/cartservice
+          - src/cartservice/src 
           - src/checkoutservice
           - src/currencyservice
           - src/emailservice
@@ -61,8 +61,34 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          cd ${{ matrix.service }}
-          IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/$(basename ${{ matrix.service }})
+          # Adjust the path if your Dockerfile is in a different location
+          DOCKERFILE_PATH=${{ matrix.service }} 
+          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
+            DOCKERFILE_PATH=${{ matrix.service }}/src # Check in the 'src' subdirectory
+          fi
+
+          if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
+            echo "Error: Dockerfile not found in $DOCKERFILE_PATH"
+            exit 1
+          fi
+
+          cd $DOCKERFILE_PATH  # Change to the directory containing the Dockerfile
+
+          # Special handling for cartservice image name
+          if [ "${{ matrix.service }}" == "src/cartservice/src" ]; then
+            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/cartservice
+          else
+            IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/$(basename ${{ matrix.service }})
+          fi
+
+          # Check for requirements.txt (Python) or go.mod and go.sum (Go)
+          if [ -f "requirements.txt" ]; then
+            pip install --upgrade pip
+            pip install -r requirements.txt
+          elif [ -f "go.mod" ] && [ -f "go.sum" ]; then
+            go mod download 
+          fi
+
           docker build -t $IMAGE_NAME:latest .
           docker push $IMAGE_NAME:latest
 
@@ -105,16 +131,14 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Get AKS Credentials (if needed for private ACR)
+        # Only needed if your ACR is private and requires authentication for AKS to pull images
         run: |
           az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
 
       - name: Deploy to AKS
-        run: |
-          echo "${{ needs.build-and-push.outputs.images }}" > images.txt
-          for image in $(cat images.txt); do
-            kubectl apply -f kubernetes-manifests/$image.yaml
-            kubectl set image deployment/$image $image=${{ env.ACR_NAME }}.azurecr.io/$image:latest --namespace ${{ env.AKS_NAMESPACE }}
-          done
+        uses: ./.github/workflows/deploy-to-aks.yml  # Corrected to use 'uses'
+        with:
+          images: "${{ needs.build-and-push.outputs.images }}" 
 
       - name: Azure CLI logout
         run: |
