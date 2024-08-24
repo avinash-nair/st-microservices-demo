@@ -11,6 +11,7 @@ metadata:
   labels:
     app: currencyservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: currencyservice
@@ -52,11 +53,11 @@ spec:
             port: 7000
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -85,16 +86,14 @@ metadata:
   labels:
     app: loadgenerator
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: loadgenerator
-  replicas: 1
   template:
     metadata:
       labels:
         app: loadgenerator
-      annotations:
-        sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: loadgenerator
       terminationGracePeriodSeconds: 5
@@ -104,37 +103,6 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-      initContainers:
-      - command:
-        - /bin/sh
-        - -exc
-        - |
-          MAX_RETRIES=12
-          RETRY_INTERVAL=10
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Attempt $i: Pinging frontend: ${FRONTEND_ADDR}..."
-            STATUSCODE=$(wget --server-response http://${FRONTEND_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
-            if [ $STATUSCODE -eq 200 ]; then
-                echo "Frontend is reachable."
-                exit 0
-            fi
-            echo "Error: Could not reach frontend - Status code: ${STATUSCODE}"
-            sleep $RETRY_INTERVAL
-          done
-          echo "Failed to reach frontend after $MAX_RETRIES attempts."
-          exit 1
-        name: frontend-check
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          privileged: false
-          readOnlyRootFilesystem: true
-        image: busybox:latest
-        env:
-        - name: FRONTEND_ADDR
-          value: "frontend:80"
       containers:
       - name: main
         securityContext:
@@ -148,15 +116,13 @@ spec:
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
-        - name: USERS
-          value: "10"
         resources:
           requests:
             cpu: 100m
-            memory: 128Mi
+            memory: 64Mi
           limits:
-            cpu: 300m
-            memory: 256Mi
+            cpu: 200m
+            memory: 128Mi
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -170,6 +136,7 @@ metadata:
   labels:
     app: productcatalogservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: productcatalogservice
@@ -200,8 +167,6 @@ spec:
         env:
         - name: PORT
           value: "3550"
-        - name: DISABLE_PROFILER
-          value: "1"
         readinessProbe:
           grpc:
             port: 3550
@@ -210,11 +175,11 @@ spec:
             port: 3550
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -243,6 +208,7 @@ metadata:
   labels:
     app: checkoutservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: checkoutservice
@@ -280,23 +246,13 @@ spec:
             value: "5050"
           - name: PRODUCT_CATALOG_SERVICE_ADDR
             value: "productcatalogservice:3550"
-          - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: PAYMENT_SERVICE_ADDR
-            value: "paymentservice:50051"
-          - name: EMAIL_SERVICE_ADDR
-            value: "emailservice:5000"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
-          - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
           resources:
             requests:
-              cpu: 200m
-              memory: 128Mi
+              cpu: 100m
+              memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 250m
+              memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -325,6 +281,7 @@ metadata:
   labels:
     app: shippingservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: shippingservice
@@ -354,10 +311,7 @@ spec:
         env:
         - name: PORT
           value: "50051"
-        - name: DISABLE_PROFILER
-          value: "1"
         readinessProbe:
-          periodSeconds: 5
           grpc:
             port: 50051
         livenessProbe:
@@ -365,11 +319,11 @@ spec:
             port: 50051
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -398,6 +352,7 @@ metadata:
   labels:
     app: cartservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: cartservice
@@ -430,18 +385,15 @@ spec:
           value: "redis-cart:6379"
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
         readinessProbe:
-          initialDelaySeconds: 15
           grpc:
             port: 7070
         livenessProbe:
-          initialDelaySeconds: 15
-          periodSeconds: 10
           grpc:
             port: 7070
 ---
@@ -472,6 +424,7 @@ metadata:
   labels:
     app: redis-cart
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: redis-cart
@@ -510,11 +463,11 @@ spec:
           name: redis-data
         resources:
           requests:
-            cpu: 100m
-            memory: 64Mi
+            cpu: 50m
+            memory: 32Mi
           limits:
-            cpu: 300m
-            memory: 256Mi
+            cpu: 150m
+            memory: 128Mi
       volumes:
       - name: redis-data
         emptyDir: {}
@@ -541,6 +494,7 @@ metadata:
   labels:
     app: emailservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: emailservice
@@ -571,23 +525,19 @@ spec:
         env:
         - name: PORT
           value: "8080"
-        - name: DISABLE_PROFILER
-          value: "1"
         readinessProbe:
-          periodSeconds: 5
           grpc:
             port: 8080
         livenessProbe:
-          periodSeconds: 5
           grpc:
             port: 8080
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -616,6 +566,7 @@ metadata:
   labels:
     app: paymentservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: paymentservice
@@ -646,8 +597,6 @@ spec:
         env:
         - name: PORT
           value: "50051"
-        - name: DISABLE_PROFILER
-          value: "1"
         readinessProbe:
           grpc:
             port: 50051
@@ -656,11 +605,11 @@ spec:
             port: 50051
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -689,6 +638,7 @@ metadata:
   labels:
     app: frontend
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
@@ -696,8 +646,6 @@ spec:
     metadata:
       labels:
         app: frontend
-      annotations:
-        sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: frontend
       securityContext:
@@ -718,47 +666,23 @@ spec:
           ports:
           - containerPort: 8080
           readinessProbe:
-            initialDelaySeconds: 10
             httpGet:
               path: "/_healthz"
               port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
           livenessProbe:
-            initialDelaySeconds: 10
             httpGet:
               path: "/_healthz"
               port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
           env:
           - name: PORT
             value: "8080"
-          - name: PRODUCT_CATALOG_SERVICE_ADDR
-            value: "productcatalogservice:3550"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
-          - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
-          - name: RECOMMENDATION_SERVICE_ADDR
-            value: "recommendationservice:8080"
-          - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: CHECKOUT_SERVICE_ADDR
-            value: "checkoutservice:5050"
-          - name: AD_SERVICE_ADDR
-            value: "adservice:9555"
-          - name: SHOPPING_ASSISTANT_SERVICE_ADDR
-            value: "shoppingassistantservice:80"
           resources:
             requests:
-              cpu: 200m
-              memory: 128Mi
+              cpu: 100m
+              memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 250m
+              memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -802,6 +726,7 @@ metadata:
   labels:
     app: recommendationservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: recommendationservice
@@ -830,27 +755,21 @@ spec:
         ports:
         - containerPort: 8080
         readinessProbe:
-          periodSeconds: 5
           grpc:
             port: 8080
         livenessProbe:
-          periodSeconds: 5
           grpc:
             port: 8080
         env:
         - name: PORT
           value: "8080"
-        - name: PRODUCT_CATALOG_SERVICE_ADDR
-          value: "productcatalogservice:3550"
-        - name: DISABLE_PROFILER
-          value: "1"
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
@@ -879,6 +798,7 @@ metadata:
   labels:
     app: adservice
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: adservice
@@ -911,19 +831,15 @@ spec:
           value: "9555"
         resources:
           requests:
-            cpu: 200m
-            memory: 128Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 250m
+            memory: 256Mi
         readinessProbe:
-          initialDelaySeconds: 20
-          periodSeconds: 15
           grpc:
             port: 9555
         livenessProbe:
-          initialDelaySeconds: 20
-          periodSeconds: 15
           grpc:
             port: 9555
 ---
@@ -946,4 +862,78 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: adservice
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shoppingassistantservice
+  labels:
+    app: shoppingassistantservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shoppingassistantservice
+  template:
+    metadata:
+      labels:
+        app: shoppingassistantservice
+    spec:
+      serviceAccountName: shoppingassistantservice
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+        image: skilltechregistry.azurecr.io/shoppingassistantservice:latest
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+        env:
+        - name: PORT
+          value: "80"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shoppingassistantservice
+  labels:
+    app: shoppingassistantservice
+spec:
+  type: ClusterIP
+  selector:
+    app: shoppingassistantservice
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shoppingassistantservice
 # [END gke_release_kubernetes_manifests_microservices_demo]
