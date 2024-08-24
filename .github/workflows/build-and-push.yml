@@ -1,6 +1,6 @@
 name: Build and Push Docker Images
 
-on:
+on: 
   push:
     branches:
       - dev
@@ -61,9 +61,10 @@ jobs:
 
       - name: Build and push Docker image
         run: |
+          # Adjust the path if your Dockerfile is in a different location
           DOCKERFILE_PATH=${{ matrix.service }} 
           if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
-            DOCKERFILE_PATH=${{ matrix.service }}/src 
+            DOCKERFILE_PATH=${{ matrix.service }}/src # Check in the 'src' subdirectory
           fi
 
           if [ ! -f "$DOCKERFILE_PATH/Dockerfile" ]; then
@@ -71,12 +72,21 @@ jobs:
             exit 1
           fi
 
-          cd $DOCKERFILE_PATH  
+          cd $DOCKERFILE_PATH  # Change to the directory containing the Dockerfile
 
+          # Special handling for cartservice image name
           if [ "${{ matrix.service }}" == "src/cartservice/src" ]; then
             IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/cartservice
           else
             IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/$(basename ${{ matrix.service }})
+          fi
+
+          # Check for requirements.txt (Python) or go.mod and go.sum (Go)
+          if [ -f "requirements.txt" ]; then
+            pip install --upgrade pip
+            pip install -r requirements.txt
+          elif [ -f "go.mod" ] && [ -f "go.sum" ]; then
+            go mod download 
           fi
 
           docker build -t $IMAGE_NAME:latest .
@@ -120,7 +130,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get AKS Credentials
+      - name: Get AKS Credentials (if needed for private ACR)
+        # Only needed if your ACR is private 
         run: |
           az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.AKS_CLUSTER_NAME }}
 
@@ -129,7 +140,12 @@ jobs:
           for service in ${{ needs.build-and-push.outputs.images }}; do
             echo "Deploying $service"
             kubectl apply -f kubernetes-manifests/$service.yaml
-            kubectl set image deployment/$service $service=${{ env.ACR_NAME }}.azurecr.io/$service:latest --namespace ${{ env.AKS_NAMESPACE }}
+            # Check if special handling is needed for cartservice
+            if [ "$service" == "cartservice" ]; then
+              kubectl set image deployment/cartservice server=skilltechregistry.azurecr.io/cartservice:latest --namespace ${{ env.AKS_NAMESPACE }}
+            else
+              kubectl set image deployment/$service $service=skilltechregistry.azurecr.io/$service:latest --namespace ${{ env.AKS_NAMESPACE }}
+            fi
             echo "Deployed $service"
           done
 
