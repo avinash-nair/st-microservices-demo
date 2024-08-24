@@ -28,7 +28,13 @@ jobs:
             kubectl apply -f kubernetes-manifests/$service.yaml 
             kubectl wait --for=condition=available deployment/$service --timeout=60s --namespace ${{ env.AKS_NAMESPACE }} # Wait for deployment to be available
             sleep 10 
-            # Use "server" as the container name for consistency
-            kubectl set image deployment/$service server=skilltechregistry.azurecr.io/$service:latest --namespace ${{ env.AKS_NAMESPACE }}
+
+            # Ensure to use the correct container name 'server'
+            if [ "$service" == "cartservice" ]; then
+              kubectl set image deployment/cartservice server=skilltechregistry.azurecr.io/cartservice:latest --namespace ${{ env.AKS_NAMESPACE }}
+            else
+              kubectl set image deployment/$service server=skilltechregistry.azurecr.io/$service:latest --namespace ${{ env.AKS_NAMESPACE }}
+            fi
+            
             echo "Deployed $service"
           done
