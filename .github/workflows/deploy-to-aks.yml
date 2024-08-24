@@ -4,7 +4,12 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch: {} 
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag of the Docker image to deploy'
+        required: true
+        default: 'latest'
 
 permissions:
   id-token: write
@@ -39,6 +44,10 @@ jobs:
       - name: Get AKS Credentials
         run: |
           az aks get-credentials --resource-group microservices-demo-rg --name microservices-demo-aks --overwrite-existing
+
+      - name: Verify kubectl context
+        run: |
+          kubectl config current-context
 
       - name: Deploy all services
         run: |
