@@ -45,14 +45,22 @@ jobs:
           echo "Deploying all services using release/kubernetes-manifests.yaml"
           kubectl apply -f release/kubernetes-manifests.yaml
 
-      - name: Update image tag
+      - name: Update image tags for each service
         run: |
           echo "Updating image tags for all services to ${{ github.event.inputs.image_tag }}"
-
-          # Use the correct container name(s) from your currencyservice manifest
-          kubectl set image deployment/currencyservice <actual-container-name-in-currencyservice-yaml>=${{ env.ACR_NAME }}.azurecr.io/currencyservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }} 
-
-          # ... (other kubectl set image commands, ensure correct container names)
+          # Replace 'server' with the actual container name from your YAML files
+          kubectl set image deployment/currencyservice server=${{ env.ACR_NAME }}.azurecr.io/currencyservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/adservice server=${{ env.ACR_NAME }}.azurecr.io/adservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/cartservice server=${{ env.ACR_NAME }}.azurecr.io/cartservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/checkoutservice server=${{ env.ACR_NAME }}.azurecr.io/checkoutservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/emailservice server=${{ env.ACR_NAME }}.azurecr.io/emailservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/frontend server=${{ env.ACR_NAME }}.azurecr.io/frontend:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/loadgenerator server=${{ env.ACR_NAME }}.azurecr.io/loadgenerator:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/paymentservice server=${{ env.ACR_NAME }}.azurecr.io/paymentservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/productcatalogservice server=${{ env.ACR_NAME }}.azurecr.io/productcatalogservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/recommendationservice server=${{ env.ACR_NAME }}.azurecr.io/recommendationservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/shippingservice server=${{ env.ACR_NAME }}.azurecr.io/shippingservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
+          kubectl set image deployment/shoppingassistantservice server=${{ env.ACR_NAME }}.azurecr.io/shoppingassistantservice:${{ github.event.inputs.image_tag }} --namespace ${{ env.AKS_NAMESPACE }}
 
       - name: Azure CLI logout
         run: |
